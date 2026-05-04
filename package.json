@@ -1,0 +1,34 @@
+{
+  "name": "lua-online",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/redwoodsteve/lua-online.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/redwoodsteve/lua-online/issues"
+  },
+  "homepage": "https://github.com/redwoodsteve/lua-online#readme",
+  "dependencies": {
+    "@codemirror/language": "^6.12.3",
+    "@codemirror/legacy-modes": "^6.5.2",
+    "@codemirror/lint": "^6.9.5",
+    "codemirror": "^6.0.2",
+    "codemirror-languageserver": "^1.22.0",
+    "luaparse": "^0.3.1"
+  },
+  "devDependencies": {
+    "@lezer/highlight": "^1.2.3",
+    "@types/luaparse": "^0.2.13",
+    "vite": "^8.0.8"
+  }
+}

@@ -1,0 +1,189 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
+:root {
+    --background: #191a1b;
+    --editor-background: #121314;
+    --gutter-background: #121314;
+    --lighter-background: #242526;
+    --border: #2a2b2c;
+
+    --active-line: #242526;
+
+    --font-color: #fff;
+    --font-color-disabled: #aaa;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--background);
+}
+main {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: row;
+}
+
+.sidebar {
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+}
+.sidebar > div:first-child {
+    font-family: "JetBrains Mono", monospace;
+    color: var(--font-color);
+    padding: 8px 4px;
+    display: flex;
+    align-items: center;
+}
+.sidebar > div:first-child button {
+    margin-left: 8px;
+    background-color: var(--border);
+    color: var(--font-color);
+    border: none;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+#explorer {
+    width: 200px;
+    height: fit-content;
+    background-color: var(--background);
+    display: flex;
+    flex-direction: column;
+    overflow: scroll;
+}
+#explorer .file {
+    font-family: "JetBrains Mono", monospace;
+    height: 25px;
+    min-width: fit-content;
+    width: 100%;
+    min-width: 200px;
+    padding: 8px 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    box-sizing: border-box;
+    background-color: var(--background);
+    color: var(--font-color);
+    gap: 4px;
+}
+#explorer div img {
+    height: 25px;
+}
+#explorer .file:hover {
+    background-color: var(--border);
+}
+#explorer .folder {
+    font-family: "JetBrains Mono", monospace;
+    display: flex;
+    flex-direction: column;
+    height: min-content;
+    background-color: var(--background);
+    cursor: pointer;
+    min-height: 25px;
+    color: var(--font-color);
+}
+#explorer .folder > div { /* header */
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0px 4px;
+    gap: 4px;
+}
+#explorer .folder > div:hover {
+    background-color: var(--border);
+}
+.folder-content {
+    margin-left: 8px;
+}
+
+#editor {
+    width: 60%;
+    height: 100%;
+    background-color: var(--editor-background);
+    overflow: hidden;
+    resize: horizontal;
+    max-width: 80%;
+}
+
+.notifications {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+}
+.notifications div {
+    background-color: var(--border);
+    color: var(--font-color);
+    padding: 8px 16px;
+    margin: 8px;
+    border-radius: 8px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+}
+
+.context-menu {
+    width: 100px;
+    background-color: var(--lighter-background);
+    border-radius: 8px;
+
+    padding: 4px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    position: absolute;
+}
+.context-menu button {
+    border: none;
+    background-color: var(--background);
+    color: var(--font-color);
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    border-radius: 8px;
+}
+.context-menu button:enabled:hover {
+    background-color: var(--border);
+}
+.context-menu button:disabled {
+    cursor: not-allowed;
+    color: var(--font-color-disabled);
+}
+
+.cm-editor {
+    height: 100%;
+}
+.cm-editor * {
+    font-family: "JetBrains Mono", monospace;
+}
+/*.cm-gutters {
+    border-color: var(--border) !important;
+}
+.cm-gutters * {
+    background-color: var(--gutter-background);
+}
+.cm-activeLineGutter {
+    background-color: var(--background) !important;
+}
+.cm-cursor {
+    border-color: white !important;
+}
+.cm-activeLine {
+    background-color: var(--active-line) !important;
+}
+.cm-selectionBackground {
+    background-color: #276782dd !important;
+    z-index: -99;
+}
+.cm-line {
+    color: var(--font-color);
+}*/

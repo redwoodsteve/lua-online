@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet" href="editor.css">
+    </head>
+    <body>
+        <main>
+            <div class="sidebar">
+                <div>
+                    Files
+                    <button id="new-file-btn">+</button>
+                    <button id="new-folder-btn">+f</button>
+                </div>
+                <div id="explorer">
+                    <!--<div>main.lua</div>-->
+                </div>
+            </div>
+            <div id="editor"></div>
+            <div class="output-panel">
+                <div class="canvas">
+
+                </div>
+                <div class="terminal">
+
+                </div>
+            </div>
+            <div class="notifications">
+            </div>
+        </main>
+        <script src="editor.ts" type="module"></script>
+    </body>
+</html>
