@@ -1,6 +1,8 @@
+import JSZip from "jszip";
 import * as idb from "./idb";
 import "./notifications";
 import { sendNotification } from "./notifications";
+import "jszip";
 
 let explorerDiv: HTMLDivElement | undefined;
 let newFileBtn: HTMLButtonElement | undefined;
@@ -369,11 +371,86 @@ export function uploadFile(startingElement: HTMLDivElement, files?: FileList) {
 	}
 }
 
+export async function loadLove() {
+	const i = document.createElement("input");
+	i.type = "file";
+	i.accept = ".love, .zip";
+
+	if (!confirm("This will delete all current files.")) return;
+
+	i.addEventListener("change", async () => {
+		if (!i.files) return;
+		const file: File = i.files[0];
+		const promises: Promise<void>[] = [];
+		try {
+			console.debug("Clearing IDB..");
+			await idb.clear();
+	
+			console.debug("Extracting..");
+			const jszip = new JSZip();
+			const contents = await jszip.loadAsync(file);
+			contents.forEach((relativePath, entry) => {
+				if (entry.dir) {
+					const normalizedDir = relativePath.endsWith('/') ? relativePath : relativePath + '/';
+                	const placeholderKey = normalizedDir + '.keep';
+					
+                	const folderPromise = idb.insert(placeholderKey, new Uint8Array());
+                	promises.push(folderPromise);
+				} else {
+					const promise = entry.async("uint8array").then(async bytes => {
+						if (relativePath.includes("__MACOSX") || relativePath.includes(".DS_Store")) return;
+						console.debug(relativePath);
+						await idb.insert(relativePath, bytes);
+					});
+					promises.push(promise);
+				}
+			});
+			await Promise.all(promises);
+			console.debug("Finished extracting.\nAdding main.lua if doesnt exist..");
+			await idb.add("main.lua", new Uint8Array());
+
+			const files = await idb.getAll();
+
+			if (!files) return;
+
+			console.debug("Rendering files..")
+
+			explorerDiv!.innerHTML = "";
+
+			for (const file of files) {
+				if (file == ".keep") continue;
+				let parentFolder = createFolderTreeForFile(file as string);
+				if (parentFolder) {
+					parentFolder.append(createFileElement(file as string)!);
+				} else {
+					explorerDiv!.append(createFileElement(file as string)!);
+				}
+			}
+
+			sendNotification("Imported!");
+		} catch (e) {
+			sendNotification("Could not open file: " + e);
+		}
+	});
+	i.addEventListener("cancel", () => {
+		i.remove();
+		return;
+	});
+
+	i.click();
+}
+
+
+
 export async function init(eDiv: HTMLDivElement, nFileBtn: HTMLButtonElement, nFolderBtn: HTMLButtonElement, uFileBtn: HTMLButtonElement, openFileCallback: (content: Uint8Array, filename: string) => void) {
 	explorerDiv = eDiv;
 	newFileBtn = nFileBtn;
 	newFolderBtn = nFolderBtn;
 	uploadBtn = uFileBtn;
+
+	document.getElementById("upload-archive-btn")?.addEventListener("click", () => {
+		loadLove();
+	});
 
 	onOpen = openFileCallback;
 

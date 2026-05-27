@@ -24,6 +24,7 @@
     "@codemirror/lint": "^6.9.5",
     "codemirror": "^6.0.2",
     "codemirror-languageserver": "^1.22.0",
+    "jszip": "^3.10.1",
     "luaparse": "^0.3.1"
   },
   "devDependencies": {

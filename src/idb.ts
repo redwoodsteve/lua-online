@@ -209,6 +209,20 @@ export async function remove(file: string) {
     });
 }
 
+export async function clear() {
+    return new Promise<void>((resolve, reject) => {
+        const transaction = idb.transaction("files", "readwrite");
+        const store = transaction.objectStore("files");
+        const removeRequest = store.clear();
+        removeRequest.onsuccess = () => {
+            resolve();
+        }
+        removeRequest.onerror = () => {
+            reject(removeRequest.error);
+        }
+    });
+}
+
 export async function getAll(includeContent = false) {
     return new Promise<string[] | {name: string, content: Uint8Array}[] | undefined>((resolve, reject) => {
         const transaction = idb.transaction("files", "readonly");
