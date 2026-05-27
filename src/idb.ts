@@ -48,19 +48,34 @@ export async function add(fileName: string, content: Uint8Array) {
             reject(new Error("No content provided"));
             return;
         }
+
+        const getRequest = idb.transaction("files", "readonly").objectStore("files").get(fileName);
+        getRequest.onsuccess = () => {
+            if (getRequest.result) {
+                resolve();
+                return;
+            }
+
+            const addRequest = idb.transaction("files", "readwrite").objectStore("files").add({ name: fileName, content: content });
+            addRequest.onsuccess = () => {
+                resolve();
+            }
+            addRequest.onerror = () => {
+                reject(addRequest.error);
+            }
+        }
+        getRequest.onerror = () => {
+            reject(getRequest.error);
+        }
         
-        const res = idb.transaction("files", "readwrite").objectStore("files").add({ name: fileName, content: content });
+        /*const res = idb.transaction("files", "readwrite").objectStore("files").add({ name: fileName, content: content });
         res.onsuccess = () => {
             resolve();
         }
         res.onerror = () => {
-            if (res.error?.name === "ConstraintError") {
-                console.log("File already exists, skipping add.");
-                resolve();
-                return;
-            }
+            console.info(res.error);
             reject(res.error);
-        }
+        }*/
     });
 }
 
@@ -194,17 +209,28 @@ export async function remove(file: string) {
     });
 }
 
-export async function getAll() {
-    return new Promise<string[] | undefined>((resolve, reject) => {
+export async function getAll(includeContent = false) {
+    return new Promise<string[] | {name: string, content: Uint8Array}[] | undefined>((resolve, reject) => {
         const transaction = idb.transaction("files", "readonly");
         const store = transaction.objectStore("files");
-        const getRequest = store.getAllKeys();
-        getRequest.onsuccess = () => {
-            resolve(getRequest.result as string[]);
-        }
-        getRequest.onerror = () => {
-            reject(getRequest.error);
-            return;
+        if (includeContent) {
+            const getRequest = store.getAll();
+            getRequest.onsuccess = () => {
+                resolve(getRequest.result as {name: string, content: Uint8Array}[]);
+            }
+            getRequest.onerror = () => {
+                reject(getRequest.error);
+                return;
+            }
+        } else {
+            const getRequest = store.getAllKeys();
+            getRequest.onsuccess = () => {
+                resolve(getRequest.result as string[]);
+            }
+            getRequest.onerror = () => {
+                reject(getRequest.error);
+                return;
+            }
         }
     });
 }
@@ -239,6 +265,75 @@ export async function getFolderItems(folderName: string, deep: boolean = false) 
     });
 }
 
+export async function removeFolder(folderName: string) {
+    const range = IDBKeyRange.bound(folderName, folderName + "\uffff");
+
+    return new Promise<void>((resolve, reject) => {
+        const transaction = idb.transaction("files", "readwrite");
+        const store = transaction.objectStore("files");
+        const deleteRequest = store.delete(range);
+
+        deleteRequest.onsuccess = () => {
+            resolve();
+        }
+        deleteRequest.onerror = () => {
+            reject(deleteRequest.error);
+            return;
+        }
+    });
+}
+
+/**
+ * 
+ * @param folderName folder name should NOT end with "/"
+ */
 export async function createFolder(folderName: string) {
+    console.debug(`(idb) Creating folder: ${folderName}`);
     await insert(folderName + "/.keep", new Uint8Array());
+}
+
+export async function renameFolder(oldName: string, newName: string) {
+    console.debug(`Old name: ${oldName}\nNew name: ${newName}`);
+    return new Promise<void>((resolve, reject) => {
+        const oldPrefix = oldName.endsWith("/") ? oldName : oldName + "/";
+        const newPrefix = newName.endsWith("/") ? newName : newName + "/";
+        if (oldPrefix === newPrefix) {
+            resolve();
+            return;
+        }
+
+        const query = IDBKeyRange.bound(oldPrefix, oldPrefix + "\uffff");
+
+        const transaction = idb.transaction("files", "readwrite");
+        const store = transaction.objectStore("files");
+        const getRequest = store.getAll(query);
+
+        getRequest.onsuccess = () => {
+            const files = getRequest.result as {name: string, content: Uint8Array}[];
+            console.debug("Renaming")
+            for (const file of files) {
+                const oldName = file.name;
+                const relativePath = file.name.slice(oldPrefix.length);
+                const newPath = newPrefix + relativePath;
+                console.debug(`File: ${file.name}\nRPath: ${relativePath}\nNewpath: ${newPath}\nNewPrevix: ${newPrefix}`)
+                file.name = newPath;
+
+                store.add(file);
+                store.delete(oldName);
+            }
+        }
+
+        getRequest.onerror = () => {
+            reject(getRequest.error);
+            return;
+        }
+
+        transaction.oncomplete = () => {
+            resolve();
+        }
+        transaction.onerror = () => {
+            reject(transaction.error);
+            return;
+        }
+    });
 }

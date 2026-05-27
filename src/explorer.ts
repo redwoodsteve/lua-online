@@ -5,14 +5,19 @@ import { sendNotification } from "./notifications";
 let explorerDiv: HTMLDivElement | undefined;
 let newFileBtn: HTMLButtonElement | undefined;
 let newFolderBtn: HTMLButtonElement | undefined;
+let uploadBtn: HTMLButtonElement | undefined;
 
 let contextMenu: HTMLDivElement;
 
-function getFileExtension(fileName: string) {
+let onOpen = (content: Uint8Array, filename: string) => {
+	return;
+};
+
+export function getFileExtension(fileName: string) {
 	return fileName.match(/\.(\w*)$/)?.[1];
 }
 function getFileName(fileName: string) {
-	return fileName.match(/[\w.]+$/)?.[0];
+	return fileName.match(/[\w.]+\/?$/)?.[0];
 }
 
 function deleteFile(element: HTMLDivElement) {
@@ -30,7 +35,10 @@ function deleteFile(element: HTMLDivElement) {
 
 function renameFile(element: HTMLDivElement) {
 	const oldPath: string | null = element.getAttribute("data-filename");
-	if (!oldPath) return;
+	if (!oldPath) {
+		sendNotification("File name data tag not found");
+		return;
+	}
 
 	const regexResult = oldPath.match(/^(.*\/)?(.*)/);
 	const oldName: string = regexResult?.[2]!;
@@ -54,6 +62,107 @@ function renameFile(element: HTMLDivElement) {
 		sendNotification(`Could not rename file ${oldPath}: ${reason}`);
 		console.error(reason);
 	});
+}
+
+function deleteFolder(element: HTMLDivElement) {
+	const folderName = element.querySelector(":scope > .folder-content")?.getAttribute("data-folderpath");
+	if (!folderName) {
+		sendNotification("Could not delete folder cuz it doesn't exist???");
+		return;
+	}
+
+	idb.removeFolder(folderName).then(() => {
+		element.remove();
+	}).catch(reason => {
+		sendNotification(`Could not delete folder ${folderName}: ${reason}`);
+	});
+}
+
+function renameFolder(element: HTMLDivElement) {
+	const oldPath = element.querySelector(":scope > .folder-content")?.getAttribute("data-folderpath");
+	if (!oldPath) {
+		sendNotification("Folder name data tag not found");
+		return;
+	}
+
+	const regexResult = oldPath.match(/([\w\/]*?)([\w]*)\/$/);
+	const oldStartingPath = regexResult?.[1];
+	const oldRelativePath = regexResult?.[2]; // doesent include the trailing slash
+
+	let promptResult = prompt("New name", oldRelativePath);
+	if (!promptResult || promptResult.trim() == "") return;
+	promptResult = promptResult.endsWith("/") ? promptResult : promptResult + "/";
+	if (promptResult == oldRelativePath || promptResult + "/" == oldRelativePath || promptResult == oldRelativePath + "/") return;
+
+	console.debug(regexResult)
+
+	const newName = oldStartingPath + promptResult;
+
+	const renamePromise = idb.renameFolder(oldPath, newName);
+
+	const headerDiv = element.querySelector(":scope > div:not(.folder-content)");
+	headerDiv!.textContent = getFileName(newName)!; // theres an exclamation mark here cuz im too lazy to check if its null or not, it should never be null so its fine, right?
+	
+	const img = document.createElement("img");
+	img.src = `https://raw.githubusercontent.com/dmhendricks/file-icon-vectors/refs/heads/master/dist/icons/square-o/folder.svg`;
+	headerDiv!.prepend(img);
+
+	renamePromise.catch(reason => {
+		headerDiv!.textContent = oldPath;
+		const img = document.createElement("img");
+		img.src = `https://raw.githubusercontent.com/dmhendricks/file-icon-vectors/refs/heads/master/dist/icons/square-o/folder.svg`;
+		headerDiv!.prepend(img);
+
+		sendNotification(`Could not rename folder ${oldPath}: ${reason}`);
+		console.error(reason);
+	});
+}
+
+function createFolder(startingElement: HTMLDivElement) {
+	let promptResult = prompt("Enter folder name:");
+	if (!promptResult || promptResult.trim() == "") return;
+
+	promptResult = promptResult.replace(/\/{2,}$/, ""); // remove trailing slashes
+	if (promptResult.includes("/")) {
+		sendNotification("Folder name cannot contain slashes");
+		return;
+	}
+	if (promptResult.search(/[\w\/]/)) {
+		sendNotification("Folder name contains malformed characters");
+		return;
+	}
+
+	const startingPath = startingElement.querySelector(":scope > .folder-content")?.getAttribute("data-folderpath") || "";
+	console.debug(`Creating folder with starting path: ${startingPath}`);
+
+	idb.createFolder(startingPath + promptResult).then(() => {
+		const newFolderElement = createFolderElement(startingPath + promptResult);
+		startingElement.append(newFolderElement!);
+	}).catch(reason => {
+		sendNotification(`Could not create folder ${startingPath + promptResult}: ${reason}`);
+		console.error(reason);
+	});
+}
+function createFile(parentElement?: HTMLDivElement) {
+	let fileName = prompt("Enter file name:");
+	if (parentElement) {
+		let prefix = parentElement.querySelector(":scope > .folder-content")?.getAttribute("data-folderpath");
+		if (prefix) {
+			fileName = prefix + fileName;
+		}
+	}
+	if (fileName) {
+		idb.add(fileName, new Uint8Array()).then(() => {
+			let parentFolder = createFolderTreeForFile(fileName);
+			if (parentFolder) {
+				parentFolder.append(createFileElement(fileName)!);
+			} else {
+				explorerDiv?.appendChild(createFileElement(fileName)!);
+			}
+		}).catch(reason => {
+			sendNotification(`Could not create file ${fileName}: ${reason}`);
+		});
+	}
 }
 
 class ContextMenuOption {
@@ -131,20 +240,40 @@ function createFileElement(name: string) {
 	imgElement.src = `https://raw.githubusercontent.com/dmhendricks/file-icon-vectors/refs/heads/master/dist/icons/square-o/${extension}.svg`;
 	fileElement.prepend(imgElement);
 
+	if (name.endsWith(".keep")) {
+		fileElement.style.height = "0px";
+		fileElement.style.boxSizing = "border-box";
+		fileElement.style.margin = "0px";
+		fileElement.style.padding = "0px";
+		fileElement.innerText = "";
+	} else {
+		fileElement.addEventListener("click", () => {
+			idb.read(name).then(result => {
+				onOpen(result!.content, result!.name);
+			}).catch((reason) => {
+				sendNotification(`Failed to open file: ${reason}`);
+			});
+		});
+	}
+
 	return fileElement;
 }
 
-function createFolderElement(name: string) {
+function createFolderElement(name: string, displayName?: string) {
 	if (getFileExtension(name)) return;
 	const folderElement = document.createElement("div");
 	folderElement.classList.add("folder");
 
 	const headerElement = document.createElement("div");
-	headerElement.textContent = getFileName(name)!;
+	headerElement.textContent = displayName || getFileName(name)!;
 	headerElement.addEventListener("contextmenu", e => {
 		e.preventDefault();
 		showContextMenu(e.clientX, e.clientY, [
-			new ContextMenuOption("Delete", name !== "main.lua", () => {deleteFile(folderElement)})
+			new ContextMenuOption("Delete", name !== "main.lua", () => {deleteFolder(folderElement)}),
+			new ContextMenuOption("Rename", true, () => {renameFolder(folderElement)}),
+			new ContextMenuOption("New File", true, () => {createFile(folderElement)}),
+			new ContextMenuOption("New Folder", true, () => {createFolder(folderElement)}),
+			new ContextMenuOption("Upload File", true, () => {uploadFile(folderElement)})
 		]);
 	});
 	folderElement.append(headerElement);
@@ -152,8 +281,6 @@ function createFolderElement(name: string) {
 	const imgElement = document.createElement("img");
 	imgElement.src = "https://raw.githubusercontent.com/dmhendricks/file-icon-vectors/refs/heads/master/dist/icons/square-o/folder.svg"
 	headerElement.prepend(imgElement);
-
-	headerElement.append(name);
 
 	const contentElement = document.createElement("div");
 	contentElement.classList.add("folder-content");
@@ -194,9 +321,9 @@ function createFolderTreeForFile(fileName: string) {
 		let contentElement = document.querySelector(`[data-folderpath="${currentPath}"]`) as HTMLDivElement;
 
 		if (!contentElement) {
-			const newFolderElement = createFolderElement(currentPath);
+			const newFolderElement = createFolderElement(currentPath, folder);
 			currentParent?.append(newFolderElement!);
-			contentElement = newFolderElement?.querySelector(".folder-content")!;
+			contentElement = newFolderElement?.querySelector(":scope > .folder-content")!;
 		}
 
 		currentParent = contentElement;
@@ -206,10 +333,54 @@ function createFolderTreeForFile(fileName: string) {
 	return currentParent;
 }
 
-export async function init(eDiv: HTMLDivElement, nFileBtn: HTMLButtonElement, nFolderBtn: HTMLButtonElement) {
+export function uploadFile(startingElement: HTMLDivElement, files?: FileList) {
+	const upload = async (files: FileList) => {
+		const startingPath = startingElement.querySelector(":scope > .folder-content")?.getAttribute("data-folderpath") || "";
+		const contentElem = startingElement.querySelector(":scope > .folder-content");
+		for (let i = 0; i < files.length; i++) {
+			const file = files.item(i)!;
+			idb.add(startingPath + file.name, await file.bytes()).then(() => {
+				contentElem?.prepend(createFileElement(startingPath + file.name));
+			}).catch(e => {
+				console.error(e);
+				sendNotification("Failed to upload file: " + e);
+			});
+		}
+	}
+	if (!files) {
+		const newInput = document.createElement("input");
+		newInput.type = "file";
+		newInput.multiple = true;
+		newInput.addEventListener("change", () => {
+			if (newInput.files) {
+				files = newInput.files;
+				newInput.remove();
+				upload(files);
+				return;
+			}
+		});
+		newInput.addEventListener("cancel", () => {
+			newInput.remove();
+			return;
+		});
+		newInput.click();
+	} else {
+		upload(files);
+	}
+}
+
+export async function init(eDiv: HTMLDivElement, nFileBtn: HTMLButtonElement, nFolderBtn: HTMLButtonElement, uFileBtn: HTMLButtonElement, openFileCallback: (content: Uint8Array, filename: string) => void) {
 	explorerDiv = eDiv;
 	newFileBtn = nFileBtn;
 	newFolderBtn = nFolderBtn;
+	uploadBtn = uFileBtn;
+
+	onOpen = openFileCallback;
+
+	uploadBtn.addEventListener("click", () => {
+		uploadFile(eDiv);
+	});
+
 	let files;
 	try {
 		await idb.init();
@@ -223,27 +394,34 @@ export async function init(eDiv: HTMLDivElement, nFileBtn: HTMLButtonElement, nF
 	if (!files) return;
 
 	for (const file of files) {
-		let parentFolder = createFolderTreeForFile(file);
+		if (file == ".keep") continue;
+		let parentFolder = createFolderTreeForFile(file as string);
 		if (parentFolder) {
-			parentFolder.append(createFileElement(file));
+			parentFolder.append(createFileElement(file as string)!);
 		} else {
-			explorerDiv.append(createFileElement(file));
+			explorerDiv.append(createFileElement(file as string)!);
 		}
 	}
 
 	nFileBtn.addEventListener("click", async () => {
-		const fileName = prompt("Enter file name:");
-		if (fileName) {
-			try {
-				await idb.add(fileName, new Uint8Array());
-				explorerDiv?.appendChild(createFileElement(fileName));
-			} catch (e) {
-				console.info(e);
-			}
+		createFile();
+	});
+	
+	nFolderBtn.addEventListener("click", () => {
+		if (!explorerDiv) {
+			sendNotification("Explorer not initialized");
+			return;
 		}
+		createFolder(explorerDiv);
 	});
 
 	document.body.addEventListener("mousedown", () => {
 		hideContextMenu();
+	});
+
+	idb.read("main.lua").then(result => {
+		onOpen(result!.content, result!.name);
+	}).catch((reason) => {
+		sendNotification(`Failed to open file: ${reason}`);
 	});
 }

@@ -7,6 +7,8 @@
     --lighter-background: #242526;
     --border: #2a2b2c;
 
+    --active: #036bfc;
+
     --active-line: #242526;
 
     --font-color: #fff;
@@ -17,6 +19,7 @@ body {
     margin: 0;
     padding: 0;
     background-color: var(--background);
+    overflow: hidden;
 }
 main {
     width: 100%;
@@ -26,6 +29,45 @@ main {
     left: 0;
     display: flex;
     flex-direction: row;
+}
+
+.resize-detector {
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    display: none;
+}
+
+.output-panel {
+    height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.output-panel .canvas {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+}
+.output-panel .canvas:focus-within {
+    border: 1px solid var(--active);
+}
+
+.terminal {
+    background-color: black;
+    display: flex;
+    flex-direction: column-reverse;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    color: white;
+    font-family: "JetBrains Mono", monospace;
+    height: 100%;
+    flex: 1;
+    min-height: 0;
 }
 
 .sidebar {
@@ -87,10 +129,10 @@ main {
     height: min-content;
     background-color: var(--background);
     cursor: pointer;
-    min-height: 25px;
+    min-height: fit-content;
     color: var(--font-color);
 }
-#explorer .folder > div { /* header */
+#explorer .folder > div:not(.folder-content) { /* header */
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -102,15 +144,61 @@ main {
 }
 .folder-content {
     margin-left: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.editor {
+    width: 60%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    /*resize: horizontal;*/
+    max-width: 80%;
+    overflow: hidden;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+.editor-resizer {
+    height: 100%;
+    width: 10px;
+    cursor: col-resize;
+    background-color: var(--lighter-background);
+}
+.editor-resizer:hover {
+    background-color: var(--active);
+}
+.editor-topbar {
+    height: 25px;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+}
+.editor-topbar * {
+    height: 100%;
+    color: white;
+    font-family: "JetBrains Mono", monospace;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.editor-topbar div + div::before {
+    width: 8px;
+    height: 8px;
+    content: "";
+    border-radius: 50%;
+    background-color: #ddd;
+    box-sizing: border-box;
+    display: inline-block;
+    margin-right: 8px;
 }
 
 #editor {
-    width: 60%;
+    width: 100%;
     height: 100%;
     background-color: var(--editor-background);
     overflow: hidden;
-    resize: horizontal;
-    max-width: 80%;
 }
 
 .notifications {
@@ -119,6 +207,7 @@ main {
     bottom: 0;
     display: flex;
     flex-direction: column;
+    max-width: 50%;
 }
 .notifications div {
     background-color: var(--border);
@@ -157,6 +246,21 @@ main {
 .context-menu button:disabled {
     cursor: not-allowed;
     color: var(--font-color-disabled);
+}
+
+.run-topbar {
+    box-sizing: border-box;
+    padding: 4px;
+}
+
+.run-topbar button {
+    height: 50px;
+    border-radius: 16px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background-color: var(--editor-background);
+    color: var(--font-color);
+    padding: 4px 8px;
 }
 
 .cm-editor {

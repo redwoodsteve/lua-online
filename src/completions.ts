@@ -38,7 +38,6 @@ export default function(context: CompletionContext): CompletionResult | null {
     const ast = syntaxTree(context.state).resolveInner(word.from, -1);
     const prev = context.state.sliceDoc(context.state.doc.lineAt(context.pos).from, ast.to);
 
-    console.log(prev)
     if (prev == "string" || prev == "comment") return null;
 
     if (prev.match(/^\s*\w*$/)) {

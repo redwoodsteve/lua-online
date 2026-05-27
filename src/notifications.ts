@@ -11,7 +11,7 @@ export function sendNotification(message: string) {
 
     setTimeout(() => {
         notification.remove();
-    }, 5000);
+    }, 25000);
 
     notification.addEventListener("click", () => {
         notification.remove();
